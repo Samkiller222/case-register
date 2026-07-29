@@ -23,6 +23,7 @@ const FIELDS = [
   { key: "employer", label: "Employer", type: "text" },
   { key: "result", label: "result", type: "select", options: ["", "passed", "email sent", "email received", "refused", "sent to interview"] },
   { key: "comments", label: "Comments", type: "textarea", full: true },
+  { key: "uncertain", label: "Uncertain about", type: "textarea", full: true },
 ];
 
 const state = {
@@ -125,7 +126,7 @@ async function runExtraction() {
     const instruction = `You are helping a visa case officer draft a case record from supporting documents.
 Read all the documents provided (text and/or images — passport pages, employer letters, appointment or flight confirmations, insurance certificates, etc.).
 Extract only what these documents actually state. Return ONLY a JSON object, no markdown fences, no commentary, with exactly these keys:
-name, surname, gender, passport_number, date_appointment, aip_date, flight_date, accommodation, insurance, insurance_expiry, skills_pass, job_title, employer, result, comments.
+name, surname, gender, passport_number, date_appointment, aip_date, flight_date, accommodation, insurance, insurance_expiry, skills_pass, job_title, employer, result, comments, uncertain.
 - gender must be "Male", "Female", or "" if unclear.
 - skills_pass must be "Yes", "No", "Not required", or "" if unclear.
 - result must be one of "passed", "email sent", "email received", "refused", "sent to interview", or "" if not stated.
@@ -133,7 +134,8 @@ name, surname, gender, passport_number, date_appointment, aip_date, flight_date,
 - insurance_expiry is the insurance policy EXPIRY date, same rule.
 - Dates: use whatever format appears in the source document; do not invent a date that isn't present.
 - If a field is not present in any document, return an empty string for it — never guess or fabricate.
-- comments: a short note on anything relevant you noticed (e.g. discrepancies, missing documents) — not a restatement of the other fields.`;
+- comments: a short note on anything relevant you noticed (e.g. discrepancies, missing documents) — not a restatement of the other fields.
+- uncertain: separate from comments. List each field you were NOT confident about and why — e.g. handwriting was hard to read, two documents gave conflicting dates, a value was inferred rather than directly stated. Leave this empty ("") only if you're confident in every field you filled in.`;
 
     const body = {
       contents: [{ role: "user", parts: [{ text: instruction }, ...parts] }],
@@ -204,7 +206,11 @@ function fileToBase64(file) {
 
 // ---------- Draft record UI ----------
 function renderRecord(justExtracted) {
-  recordTag.textContent = state.record ? "Draft — review" : "Unverified";
+  if (state.record) {
+    recordTag.textContent = (state.record.uncertain || "").trim() ? "Draft — check uncertainty notes" : "Draft — review";
+  } else {
+    recordTag.textContent = "Unverified";
+  }
   if (!state.record) {
     recordBody.innerHTML = `<div class="empty-state"><span class="mark">§</span>Extracted fields will appear here for review once documents are processed.</div>`;
     return;
