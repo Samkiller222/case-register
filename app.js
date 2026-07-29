@@ -1,6 +1,7 @@
 /* Case Register — document extraction
- * Client-side only. Calls api.anthropic.com directly from the browser using
- * a key the user supplies (kept in localStorage, never in this repo).
+ * Client-side only. Calls generativelanguage.googleapis.com (Gemini) directly
+ * from the browser using a key the user supplies (kept in localStorage, never
+ * in this repo).
  */
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -137,7 +138,7 @@ name, surname, gender, passport_number, date_appointment, aip_date, flight_date,
       generationConfig: { responseMimeType: "application/json" },
     };
 
-    const model = "gemini-2.5-flash";
+    const model = "gemini-3.6-flash";
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
       {
