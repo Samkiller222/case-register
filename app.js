@@ -16,7 +16,7 @@ const FIELDS = [
   { key: "aip_date", label: "AIP Date", type: "text" },
   { key: "flight_date", label: "Flight Date", type: "text" },
   { key: "accommodation", label: "Accommodation", type: "text" },
-  { key: "insurance", label: "Insurance", type: "text" },
+  { key: "insurance", label: "Insurance (start date)", type: "text" },
   { key: "insurance_expiry", label: "Insurance Expiry", type: "text" },
   { key: "skills_pass", label: "Skills pass", type: "select", options: ["", "Yes", "No", "Not required"] },
   { key: "job_title", label: "Job title", type: "text" },
@@ -129,6 +129,8 @@ name, surname, gender, passport_number, date_appointment, aip_date, flight_date,
 - gender must be "Male", "Female", or "" if unclear.
 - skills_pass must be "Yes", "No", "Not required", or "" if unclear.
 - result must be one of "passed", "email sent", "email received", "refused", "sent to interview", or "" if not stated.
+- insurance is the insurance policy START DATE (matches the format of a date field in the source form) — do NOT put the insurance company/provider name here, only a date.
+- insurance_expiry is the insurance policy EXPIRY date, same rule.
 - Dates: use whatever format appears in the source document; do not invent a date that isn't present.
 - If a field is not present in any document, return an empty string for it — never guess or fabricate.
 - comments: a short note on anything relevant you noticed (e.g. discrepancies, missing documents) — not a restatement of the other fields.`;
