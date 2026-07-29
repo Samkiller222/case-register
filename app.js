@@ -19,6 +19,7 @@ const FIELDS = [
   { key: "insurance", label: "Insurance (start date)", type: "text" },
   { key: "insurance_expiry", label: "Insurance Expiry", type: "text" },
   { key: "skills_pass", label: "Skills pass", type: "select", options: ["", "Yes", "No", "Not required"] },
+  { key: "pre_departure", label: "Pre-Departure course", type: "select", options: ["", "Yes", "No", "Not required"] },
   { key: "job_title", label: "Job title", type: "text" },
   { key: "employer", label: "Employer", type: "text" },
   { key: "result", label: "result", type: "select", options: ["", "passed", "email sent", "email received", "refused", "sent to interview"] },
@@ -126,9 +127,12 @@ async function runExtraction() {
     const instruction = `You are helping a visa case officer draft a case record from supporting documents.
 Read all the documents provided (text and/or images — passport pages, employer letters, appointment or flight confirmations, insurance certificates, etc.).
 Extract only what these documents actually state. Return ONLY a JSON object, no markdown fences, no commentary, with exactly these keys:
-name, surname, gender, passport_number, date_appointment, aip_date, flight_date, accommodation, insurance, insurance_expiry, skills_pass, job_title, employer, result, comments, uncertain.
+name, surname, gender, passport_number, date_appointment, aip_date, flight_date, accommodation, insurance, insurance_expiry, skills_pass, pre_departure, job_title, employer, result, comments, uncertain.
 - gender must be "Male", "Female", or "" if unclear.
-- skills_pass must be "Yes", "No", "Not required", or "" if unclear.
+- skills_pass and pre_departure are TWO SEPARATE things that are easy to confuse — read carefully:
+  - skills_pass = "Yes" only if you see a "Skills Pass" certificate: issuer "Skills Pass Malta", a diamond/circular Skills Pass logo, and a layout with ISSUE DATE / RECIPIENT / ISSUER / ISSUER INFORMATION fields. Note: its batch name may itself contain the word "predeparture" (e.g. "Phase 2 predeparture batch 11") — that is just naming a training session/batch, it does NOT mean this document belongs to pre_departure. If you see this document type, set skills_pass, not pre_departure.
+  - pre_departure = "Yes" only if you see a "PRE-DEPARTURE COURSE — Certificate of Achievement" issued by the Government of Malta (Ministry for Home Affairs, Security and Employment), listing specific course topics (e.g. language, hygiene, culture, transport). If you see this document type, set pre_departure, not skills_pass.
+  - Each is "No" or "Not required" only if stated as such in a document; "" if neither document type is present at all.
 - result must be one of "passed", "email sent", "email received", "refused", "sent to interview", or "" if not stated.
 - insurance is the insurance policy START DATE (matches the format of a date field in the source form) — do NOT put the insurance company/provider name here, only a date.
 - insurance_expiry is the insurance policy EXPIRY date, same rule.
