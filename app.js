@@ -42,9 +42,9 @@ const logCount = el("logCount");
 
 // ---------- API key persistence ----------
 const apiKeyInput = el("apiKey");
-apiKeyInput.value = localStorage.getItem("case_register_api_key") || "";
+apiKeyInput.value = localStorage.getItem("case_register_gemini_key") || "";
 apiKeyInput.addEventListener("input", () => {
-  localStorage.setItem("case_register_api_key", apiKeyInput.value.trim());
+  localStorage.setItem("case_register_gemini_key", apiKeyInput.value.trim());
 });
 
 // ---------- File intake ----------
@@ -99,23 +99,23 @@ async function runExtraction() {
   setStatus("Reading documents…");
 
   try {
-    const contentBlocks = [];
+    const parts = [];
     for (const { file } of state.files) {
       if (file.type === "application/pdf") {
         const text = await extractPdfText(file);
         if (text.trim().length > 40) {
-          contentBlocks.push({ type: "text", text: `--- Document: ${file.name} (PDF text) ---\n${text}` });
+          parts.push({ text: `--- Document: ${file.name} (PDF text) ---\n${text}` });
         } else {
-          // likely a scanned PDF with no embedded text layer
-          contentBlocks.push({ type: "text", text: `--- Document: ${file.name} ---\n[No extractable text layer — re-upload as a JPG/PNG page scan for this one.]` });
+          // no embedded text layer (likely scanned) — send the PDF itself,
+          // Gemini reads PDFs natively including scanned pages
+          const base64 = await fileToBase64(file);
+          parts.push({ text: `--- Document: ${file.name} (scanned PDF) ---` });
+          parts.push({ inline_data: { mime_type: "application/pdf", data: base64 } });
         }
       } else if (file.type.startsWith("image/")) {
         const base64 = await fileToBase64(file);
-        contentBlocks.push({ type: "text", text: `--- Document: ${file.name} (image) ---` });
-        contentBlocks.push({
-          type: "image",
-          source: { type: "base64", media_type: file.type, data: base64 },
-        });
+        parts.push({ text: `--- Document: ${file.name} (image) ---` });
+        parts.push({ inline_data: { mime_type: file.type, data: base64 } });
       }
     }
 
@@ -133,23 +133,19 @@ name, surname, gender, passport_number, date_appointment, aip_date, flight_date,
 - comments: a short note on anything relevant you noticed (e.g. discrepancies, missing documents) — not a restatement of the other fields.`;
 
     const body = {
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      messages: [
-        { role: "user", content: [{ type: "text", text: instruction }, ...contentBlocks] },
-      ],
+      contents: [{ role: "user", parts: [{ text: instruction }, ...parts] }],
+      generationConfig: { responseMimeType: "application/json" },
     };
 
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify(body),
-    });
+    const model = "gemini-2.5-flash";
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
 
     if (!resp.ok) {
       const errText = await resp.text();
@@ -157,10 +153,10 @@ name, surname, gender, passport_number, date_appointment, aip_date, flight_date,
     }
 
     const data = await resp.json();
-    const textBlock = (data.content || []).find(b => b.type === "text");
-    if (!textBlock) throw new Error("No text in response.");
+    const rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join("") || "";
+    if (!rawText) throw new Error("No text in response — the model may have blocked the content or returned nothing.");
 
-    const cleaned = textBlock.text.replace(/```json|```/g, "").trim();
+    const cleaned = rawText.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
 
     state.record = parsed;
